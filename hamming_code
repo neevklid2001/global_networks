@@ -54,15 +54,18 @@ def coding(text):
     for i in range(7):        
       x[ind][2**i-1]=y[i]
     p.append(y)
-  
-  return x, p, crc32
+  cons=zlib.crc32(str(p).encode('utf-8'))
+  return x, p, crc32, cons
   
 #функция декодирования
-def encoding(mes, matr, c32):
+def encoding(mes, matr, c32, cs):
   
   import numpy as np
-  import zlib  
+  import zlib
+   
   message, mat=mes.copy(), matr.copy()
+  if cs==zlib.crc32(str(mat).encode('utf-8')):
+    print('контрольная сумма корректна') 
   def con_sum(message):
     p=[]    
     for ind in range(message.shape[0]):
@@ -181,13 +184,13 @@ McKinsey & Co: «Машинное обучение основано на алг�
 """
 
 #Без ошибок
-mes, matr, c32=coding(t) 
-te=encoding(mes, matr, c32)
+mes, matr, c32, cs=coding(t) 
+te=encoding(mes, matr, c32, cs)
 print(t==te)
 
 #Не более 1 ошибки
-m1, mat1, c1=coding(t)
-m2, mat2, c2=coding(t)
+m1, mat1, c1, cs1=coding(t)
+m2, mat2, c2, cs2=coding(t)
 
 encoding(m1,mat1,c1)==t
 
@@ -198,11 +201,11 @@ for i in range(m1.shape[0]):
   m1[i][j]=1-m1[i][j]
 
 eq(m1,m2)
-encoding(m1,mat1,c1)==encoding(m2,mat2,c2)
-t==encoding(m1,mat1,c1)
+encoding(m1,mat1,c1,cs1)==encoding(m2,mat2,c2,cs2)
+t==encoding(m1,mat1,c1,cs1)
 
 #Более 1 ошибки
-m3, mat3, c3=coding(t)
+m3, mat3, c3, cs3=coding(t)
 n=0
 import random
 for i in range(m3.shape[0]):
@@ -219,7 +222,8 @@ for i in range(m3.shape[0]):
 print(n/(m3.shape[0]*3))
 print(n)
 
-dec=encoding(m3,mat3,c3)
+dec=encoding(m3,mat3,c3,cs3)
+
 err=0
 for i in range(len(dec)):
   if dec[i]!=t[i]:
@@ -229,3 +233,13 @@ print(err)
 
 #исправлено ошибок 
 print(n-err)
+
+#Количество верно и неверно доставленных "слов"
+tr=0
+f=0
+for i in range(0,len(t),3):
+  if dec[i]==t[i] and dec[i+1]==t[i+1] and dec[i+2]==t[i+2]:
+    tr+=1
+  else:
+    f+=1
+print(tr, f)    
