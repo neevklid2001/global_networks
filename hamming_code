@@ -1,0 +1,231 @@
+#функция кодирования
+def coding(text):
+  import numpy as np
+  import zlib
+  crc32=zlib.crc32(text.encode('utf-8'))
+  a=[]
+  for elem in text:
+    a.append(ord(elem))
+  x=np.zeros((len(a)//3+min(len(a)%3,1),67))
+  for index in range(0,len(a),3):
+    b=np.zeros(20)
+    for i in range(20):
+      if 2**(19-i)<=a[index]:
+        b[i]=1
+        a[index]-=2**(19-i)
+    k=0
+    for i in range(25):
+     if 2**k==i+1:
+      k+=1
+     else:
+      x[index//3][i]=b[i-k]
+    b=np.zeros(20)
+    if index+1<len(a):
+      for i in range(20):
+        if 2**(19-i)<=a[index+1]:
+          b[i]=1
+          a[index+1]-=2**(19-i)
+    for i in range(20):
+      if i<6:
+       x[index//3][i+25]=b[i]
+      else:
+       x[index//3][i+26]=b[i]      
+    b=np.zeros(20)
+    if index+2<len(a):
+      for i in range(20):
+        if 2**(19-i)<=a[index+2]:
+          b[i]=1
+          a[index+2]-=2**(19-i)      
+    for i in range(20):
+      if i<17:
+       x[index//3][i+46]=b[i]
+      else:
+       x[index//3][i+47]=b[i]   
+  p=[]      
+  for ind in range(x.shape[0]):
+    y=np.zeros(7)    
+    for i in range(7):
+      s=0
+      for j in range(2**i-1, 67, 2**(i+1)):
+        for k in range(2**i):
+          if j+k<67:
+            s+=x[ind][j+k]
+      y[i]=int(s)%2
+    for i in range(7):        
+      x[ind][2**i-1]=y[i]
+    p.append(y)
+  
+  return x, p, crc32
+  
+#функция декодирования
+def encoding(mes, matr, c32):
+  
+  import numpy as np
+  import zlib  
+  message, mat=mes.copy(), matr.copy()
+  def con_sum(message):
+    p=[]    
+    for ind in range(message.shape[0]):
+      y=np.zeros(7)  
+      for i in range(7):
+        s=0
+        for j in range(2**i-1, 67, 2**(i+1)):
+          for k in range(2**i):
+            if j+k<67:
+              s+=message[ind][j+k]
+        y[i]=int(s)%2
+      p.append(y)
+    return(p)
+  def go_back(x):
+    k=0
+    w1=[]
+    w2=[]
+    w3=[]
+    for i in range(25):
+      if 2**k==i+1:
+        k+=1
+      else:
+        w1.append(x[i])
+    for i in range(25,46):
+      if 2**k==i+1:
+        k+=1
+      else:
+        w2.append(x[i])
+    for i in range(46,67):
+      if 2**k==i+1:
+        k+=1
+      else:
+        w3.append(x[i])    
+    l1=0    
+    for i in range(len(w1)):
+      l1+=2**(19-i)*w1[i]
+    l=chr(int(l1))
+    l2=0    
+    for i in range(len(w2)):
+      l2+=2**(19-i)*w2[i]
+    l3=0    
+    for i in range(len(w3)):
+      l3+=2**(19-i)*w3[i]    
+    if l2!=0:  
+      l+=chr(int(l2))
+    if l3!=0:
+      l+=chr(int(l3))
+    return l
+  def eq(m1,m2):
+    flag=True
+    for i in range(len(m1)):
+      for j in range (len(m1[0])):
+        if m1[i][j]!=m2[i][j]:
+          flag=False
+    return flag
+  for ind in range(message.shape[0]):
+    for i in range(7):
+      message[ind][2**i-1]=0
+  p=con_sum(message)
+  if (eq(p,mat)):
+    text=''
+    for ind in range(message.shape[0]):
+      text+=go_back(message[ind])
+  else: 
+    for ind in range(len(p)):
+        err=0  
+        for i in range(len(p[ind])):
+          if p[ind][i]!=mat[ind][i] and err+2**i<=67:
+            err+=2**i
+        if err>0:
+          message[ind][err-1]=1-message[ind][err-1]
+    p=con_sum(message)
+    text=''
+    for ind in range(message.shape[0]):
+      text+=go_back(message[ind])
+  if c32==zlib.crc32(text.encode('utf-8')):
+    print('сообщение доставлено верно')
+  else:
+    print('в доставленном сообщении имеются ошибки')
+  return text
+
+#Функция сравнения матриц
+def eq(m1,m2):
+    flag=True
+    for i in range(len(m1)):
+      for j in range (len(m1[0])):
+        if m1[i][j]!=m2[i][j]:
+          flag=False
+    return flag 
+    
+#Проверка
+
+t="""Вот как определяют машинное обучение представители ведущих ИТ-компаний и исследовательских центров:
+
+Nvidia: «Это практика использования алгоритмов для анализа данных, изучения их и последующего определения или предсказания чего-либо».
+
+Университет Стэнфорда: «Это наука о том, как заставить компьютеры работать без явного программирования».
+
+McKinsey & Co: «Машинное обучение основано на алгоритмах, которые могут учиться на данных, не полагаясь на программирование на основе базовых правил».
+
+Вашингтонский университет: «Алгоритмы машинного обучения могут сами понять, как выполнять важные задачи, обобщая примеры, которые у них есть».
+
+Университет Карнеги Меллон: «Сфера машинного обучения пытается ответить на вопрос: «Как мы можем создавать компьютерные системы, которые автоматически улучшаются по мере накопления опыта и каковы фундаментальные законы, которые управляют всеми процессами обучения?»
+
+В 1950 году появился тест Алана Тьюринга для оценки интеллекта компьютера. С его помощью ученый предлагал определить, способен ли компьютер мыслить как человек;
+В 1958 году американский нейрофизиолог Фрэнк Розенблатт придумал Персептрон — первую искусственную нейронную сеть, а также первый нейрокомпьютер «Марк-1»;
+В 1959 году американский исследователь ИИ Марвин Минский создал SNARC — первую вычислительную машину на базе нейросети;
+
+В том же году его коллега Артур Самуэль изобрел первую программу по игре в шашки, которая обучалась самостоятельно. Он впервые ввел термин «машинное обучение», описав его как процесс, в результате которого машина показывает поведение, на которое не была изначально запрограммирована;
+В 1967 году был создан первый метрический алгоритм для классификации данных, который позволял ИИ использовать шаблоны для распознавания и обучения;
+
+В 1967 году был создан первый метрический алгоритм для классификации данных, который позволял ИИ использовать шаблоны для распознавания и обучения;
+В 1997 году программа Deep Blue впервые обыграла чемпиона мира по шахматам Гарри Каспарова;
+В 2006 году исследователь нейросетей Джеффри Хинтон ввел термин «глубокое обучение» (deep learning);
+
+"""
+
+#Без ошибок
+mes, matr, c32=coding(t) 
+te=encoding(mes, matr, c32)
+print(t==te)
+
+#Не более 1 ошибки
+m1, mat1, c1=coding(t)
+m2, mat2, c2=coding(t)
+
+encoding(m1,mat1,c1)==t
+
+#для создания ошибок
+import random
+for i in range(m1.shape[0]):
+  j=random.randint(0,66)
+  m1[i][j]=1-m1[i][j]
+
+eq(m1,m2)
+encoding(m1,mat1,c1)==encoding(m2,mat2,c2)
+t==encoding(m1,mat1,c1)
+
+#Более 1 ошибки
+m3, mat3, c3=coding(t)
+n=0
+import random
+for i in range(m3.shape[0]):
+  j=random.randint(10,56)
+  n+=1
+  m3[i][j]=1-m3[i][j]
+  r=random.choice([True, False])
+  k=random.choice(list(range(-10,10)))
+  if r:
+    m3[i][j+k]=1-m3[i][j+k]
+    if (j<25 and j+k>=25) or (j>=25 and j<46 and (j+k<25 or j+k>=46)) or (j>=46 and j+k<46):
+      n+=1
+#ошибки допущены в (символах):      
+print(n/(m3.shape[0]*3))
+print(n)
+
+dec=encoding(m3,mat3,c3)
+err=0
+for i in range(len(dec)):
+  if dec[i]!=t[i]:
+    err+=1
+print(err/len(dec))
+print(err)
+
+#исправлено ошибок 
+print(n-err)
